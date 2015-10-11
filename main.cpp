@@ -20,7 +20,7 @@ const uchar h1 = 5;
 
 uchar board[w*h];
 uchar ball;
-bool  player;
+bool  rightPlayerTurn;
 
 uchar flag[] =
 {
@@ -46,16 +46,28 @@ char dind[] =
     -w+1
 };
 
+//string label[] =
+//{
+//    "down left",
+//    "down",
+//    "down right",
+//    "left",
+//    "right",
+//    "up left",
+//    "up",
+//    "up right"
+//};
+
 string label[] =
 {
-    "down left",
-    "down",
-    "down right",
-    "left",
-    "right",
     "up left",
+    "left",
+    "down left",
     "up",
-    "up right"
+    "down",
+    "up right",
+    "right",
+    "down right"
 };
 
 const uchar NW = 0;
@@ -81,7 +93,7 @@ GSTATE state;
 const uint maxNumMoves = 305;
 uint  numMoves;
 uchar moveHistory[maxNumMoves];
-bool  playerHistory[maxNumMoves];
+bool  playerTurnHistory[maxNumMoves];
 
 uchar cdir(uchar dir)
 {
@@ -123,7 +135,7 @@ void setupBoard()
     }
 
     ball = ind(w/2, h/2);
-    player = true;
+    rightPlayerTurn = true;
     state = RUN;
     numMoves = 0;
 }
@@ -131,7 +143,7 @@ void setupBoard()
 void makeMove(uchar dir)
 {
     moveHistory[numMoves] = dir;
-    playerHistory[numMoves] = player;
+    playerTurnHistory[numMoves] = rightPlayerTurn;
     ++numMoves;
 
     board[ball] |= flag[dir];
@@ -140,7 +152,7 @@ void makeMove(uchar dir)
     uchar ballX = indX(ball);
     uchar ballY = indY(ball);
 
-    if(((!ballX && player) || (ballX == w-1 && !player)) && (ballY == h0 || ballY == h1))
+    if(((!ballX && rightPlayerTurn) || (ballX == w-1 && !rightPlayerTurn)) && (ballY == h0 || ballY == h1))
     {
         if(!ballX)
             state = RWIN;
@@ -149,13 +161,13 @@ void makeMove(uchar dir)
     }
 
     if((!board[ball] && ballX && ballY && ballX != w-1 && ballY != h-1) || ball == wc0 || ball == wc1)
-        player = !player;
+        rightPlayerTurn = !rightPlayerTurn;
 
     board[ball] |= flag[cdir(dir)];
 
     if(board[ball] == blocked)
     {
-        if(!player)
+        if(!rightPlayerTurn)
             state = RWIN;
         else
             state = LWIN;
@@ -165,7 +177,7 @@ void makeMove(uchar dir)
 void undoMove()
 {
     uchar dir = moveHistory[--numMoves];
-    player = playerHistory[numMoves];
+    rightPlayerTurn = playerTurnHistory[numMoves];
 
     board[ball] &= ~flag[cdir(dir)];
     ball += dind[cdir(dir)];
@@ -200,7 +212,7 @@ int negamax(int depth, uchar* bestMove, int A = -inf, int B = inf)
 {
     if(!depth || (int)state)
     {
-        return eval() * (player ? -1 : 1);
+        return eval() * (rightPlayerTurn ? -1 : 1);
     }
 
     int best = -inf;
@@ -211,7 +223,7 @@ int negamax(int depth, uchar* bestMove, int A = -inf, int B = inf)
         {
             makeMove(i);
 
-            bool turnChanged = (playerHistory[numMoves-1] != player);
+            bool turnChanged = (playerTurnHistory[numMoves-1] != rightPlayerTurn);
 
             int Anew = (turnChanged ? -B : A);
             int Bnew = (turnChanged ? -A : B);
@@ -220,7 +232,11 @@ int negamax(int depth, uchar* bestMove, int A = -inf, int B = inf)
             undoMove();
 
             if(val >= B)
+            {
+                //if(bestMove)
+                //    cout << "\nCut-off " << label[i] << " score:" << val << " beta:" << B;
                 return val;
+            }
 
             if(val > best)
             {
@@ -239,7 +255,7 @@ int negamax(int depth, uchar* bestMove, int A = -inf, int B = inf)
 uchar computerMove()
 {
     uchar bestMove = 8;
-    negamax(20, &bestMove);
+    negamax(20, &bestMove, -inf, 1);
     assert(bestMove != 8);
 
     return bestMove;
@@ -257,12 +273,12 @@ int main()
 
         while(!(int)state)
         {
-            if(!player || 1)
+            if(!rightPlayerTurn)
             {
                 uchar dir = computerMove();
                 makeMove(dir);
 
-                cout << numMoves << "........... L " << label[dir] << '\n';
+                cout << numMoves << "........... " << (playerTurnHistory[numMoves-1] ? "R" : "L") << " " << label[dir] << '\n';
             }
             else
             {
@@ -285,7 +301,7 @@ int main()
 
                 makeMove(dir);
 
-                cout << numMoves << "........... R " << label[dir] << '\n';
+                cout << numMoves << "........... " << (playerTurnHistory[numMoves-1] ? "R" : "L") << " " << label[dir] << '\n';
             }
         }
 
@@ -293,6 +309,8 @@ int main()
             cout << "Left player won!\n\n";
         else
             cout << "Right player won!\n\n";
+
+        break;
     }
 
     return 0;
