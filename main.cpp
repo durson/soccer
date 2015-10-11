@@ -4,6 +4,7 @@
 #include <string>
 #include <algorithm>
 #include <time.h>
+#include <cassert>
 
 
 using namespace std;
@@ -175,14 +176,12 @@ void undoMove()
 
 int evalR()
 {
-    int dist2goal = indX(ball) + abs(indY(ball)-h/2);
-    return -dist2goal;
+    return -indX(ball);
 }
 
 int evalL()
 {
-    int dist2goal = w-1-indX(ball) + abs(indY(ball)-h/2);
-    return -dist2goal;
+    return -w+1+indX(ball);
 }
 
 int eval()
@@ -198,52 +197,28 @@ int eval()
 int negamax(int depth, uchar* bestMove)
 {
     if(!depth || (int)state)
-        return eval();
-
-    int best;
-
-    if(player)
     {
-        best = 101;
-
-        for(uchar i = 0; i < 8; ++i)
-        {
-            if(!(board[ball] & flag[i]))
-            {
-                makeMove(i);
-
-                int val = negamax(depth-1, nullptr);
-                if(val < best)
-                {
-                    best = val;
-                    if(bestMove)
-                        *bestMove = i;
-                }
-
-                undoMove();
-            }
-        }
+        return eval() * (player ? -1 : 1);
     }
-    else
+
+    int best = -101;
+
+    for(uchar i = 0; i < 8; ++i)
     {
-        best = -101;
-
-        for(uchar i = 0; i < 8; ++i)
+        if(!(board[ball] & flag[i]))
         {
-            if(!(board[ball] & flag[i]))
+            makeMove(i);
+
+            bool turnChanged = (playerHistory[numMoves-1] != player);
+            int val = negamax(depth-1, nullptr) * (turnChanged ? -1 : 1);
+            if(val > best)
             {
-                makeMove(i);
-
-                int val = negamax(depth-1, nullptr);
-                if(val > best)
-                {
-                    best = val;
-                    if(bestMove)
-                        *bestMove = i;
-                }
-
-                undoMove();
+                best = val;
+                if(bestMove)
+                    *bestMove = i;
             }
+
+            undoMove();
         }
     }
 
@@ -253,7 +228,8 @@ int negamax(int depth, uchar* bestMove)
 uchar computerMove()
 {
     uchar bestMove = 8;
-    negamax(9, &bestMove);
+    negamax(10, &bestMove);
+    assert(bestMove != 8);
 
     return bestMove;
 }
