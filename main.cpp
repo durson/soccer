@@ -174,6 +174,8 @@ void undoMove()
     state = RUN;
 }
 
+const int inf = 100;
+
 int evalR()
 {
     return -indX(ball);
@@ -187,21 +189,21 @@ int evalL()
 int eval()
 {
     if(state == LWIN)
-        return 100;
+        return inf-1;
     else if(state == RWIN)
-        return -100;
+        return -inf+1;
     else
         return evalL() - evalR();
 }
 
-int negamax(int depth, uchar* bestMove)
+int negamax(int depth, uchar* bestMove, int A = -inf, int B = inf)
 {
     if(!depth || (int)state)
     {
         return eval() * (player ? -1 : 1);
     }
 
-    int best = -101;
+    int best = -inf;
 
     for(uchar i = 0; i < 8; ++i)
     {
@@ -210,15 +212,24 @@ int negamax(int depth, uchar* bestMove)
             makeMove(i);
 
             bool turnChanged = (playerHistory[numMoves-1] != player);
-            int val = negamax(depth-1, nullptr) * (turnChanged ? -1 : 1);
+
+            int Anew = (turnChanged ? -B : A);
+            int Bnew = (turnChanged ? -A : B);
+            int val = negamax(depth-1, nullptr, Anew, Bnew) * (turnChanged ? -1 : 1);
+
+            undoMove();
+
+            if(val >= B)
+                return val;
+
             if(val > best)
             {
                 best = val;
+                if(val > A)
+                    A = val;
                 if(bestMove)
                     *bestMove = i;
             }
-
-            undoMove();
         }
     }
 
@@ -228,7 +239,7 @@ int negamax(int depth, uchar* bestMove)
 uchar computerMove()
 {
     uchar bestMove = 8;
-    negamax(10, &bestMove);
+    negamax(20, &bestMove);
     assert(bestMove != 8);
 
     return bestMove;
@@ -246,12 +257,12 @@ int main()
 
         while(!(int)state)
         {
-            if(!player)
+            if(!player || 1)
             {
                 uchar dir = computerMove();
                 makeMove(dir);
 
-                cout << numMoves << ". L " << label[dir] << '\n';
+                cout << numMoves << "........... L " << label[dir] << '\n';
             }
             else
             {
@@ -274,7 +285,7 @@ int main()
 
                 makeMove(dir);
 
-                cout << numMoves << ". R " << label[dir] << '\n';
+                cout << numMoves << "........... R " << label[dir] << '\n';
             }
         }
 
