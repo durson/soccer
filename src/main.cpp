@@ -1,315 +1,257 @@
 #include <iostream>
 #include <cstring>
-#include <cstdlib>
 #include <string>
-#include <algorithm>
-#include <time.h>
 #include <cassert>
 
+typedef uint8_t dir_t;
+typedef int32_t idx_t;
 
-using namespace std;
+const dir_t UL = 0;
+const dir_t U  = 1;
+const dir_t UR = 2;
+const dir_t L  = 3;
+const dir_t R  = 4;
+const dir_t DL = 5;
+const dir_t D  = 6;
+const dir_t DR = 7;
+const dir_t dir_invalid = 8;
+const dir_t field_blocked = ~0;
 
-
-typedef unsigned int  uint;
-typedef unsigned char uchar;
-
-const uchar w = 11;
-const uchar h = 9;
-const uchar h0 = 3;
-const uchar h1 = 5;
-
-uchar board[w*h];
-uchar ball;
-bool  rightPlayerTurn;
-
-uchar flag[] =
-{
-    1 << 0,
-    1 << 1,
-    1 << 2,
-    1 << 3,
-    1 << 4,
-    1 << 5,
-    1 << 6,
-    1 << 7
-};
-
-char dind[] =
-{
-    w-1,
-    w,
-    w+1,
-    -1,
-    1,
-    -w-1,
-    -w,
-    -w+1
-};
-
-//string label[] =
-//{
-//    "down left",
-//    "down",
-//    "down right",
-//    "left",
-//    "right",
-//    "up left",
-//    "up",
-//    "up right"
-//};
-
-string label[] =
-{
-    "up left",
-    "left",
-    "down left",
-    "up",
-    "down",
-    "up right",
-    "right",
-    "down right"
-};
-
-const uchar NW = 0;
-const uchar N  = 1;
-const uchar NE = 2;
-const uchar W  = 3;
-const uchar E  = 4;
-const uchar SW = 5;
-const uchar S  = 6;
-const uchar SE = 7;
-
-const uchar blocked = flag[W] | flag[SW] | flag[S] | flag[SE] | flag[E] | flag[NW] | flag[N] | flag[NE];
-
-enum GSTATE
-{
-    RUN = 0,
+enum GSTATE {
+    PLAYING = 0,
     LWIN = 1,
     RWIN = 2
 };
 
-GSTATE state;
-
-const uint maxNumMoves = 305;
-uint  numMoves;
-uchar moveHistory[maxNumMoves];
-bool  playerTurnHistory[maxNumMoves];
-
-uchar cdir(uchar dir)
-{
-    return 7-dir;
-}
-
-uchar ind(uchar x, uchar y)
-{
-    return x + w*y;
-}
-
-const uchar wc0 = ind(0,   h/2);
-const uchar wc1 = ind(w-1, h/2);
-
-uchar indX(uchar i)
-{
-    return i % w;
-}
-
-uchar indY(uchar i)
-{
-    return i / w;
-}
-
-void setupBoard()
-{
-    memset(board, 0, sizeof(board));
-
-    for(uint i = 0u; i < w; ++i)
-    {
-        board[ind(i, 0)  ] |= flag[W] | flag[SW] | flag[S] | flag[SE] | flag[E];
-        board[ind(i, h-1)] |= flag[W] | flag[NW] | flag[N] | flag[NE] | flag[E];
-    }
-
-    for(uint i = 0u; i < h; ++i)
-    {
-        board[ind(0,   i)] |= flag[S] | flag[SW] | flag[W] | flag[NW] | flag[N];
-        board[ind(w-1, i)] |= flag[S] | flag[SE] | flag[E] | flag[NE] | flag[N];
-    }
-
-    ball = ind(w/2, h/2);
-    rightPlayerTurn = true;
-    state = RUN;
-    numMoves = 0;
-}
-
-void makeMove(uchar dir)
-{
-    moveHistory[numMoves] = dir;
-    playerTurnHistory[numMoves] = rightPlayerTurn;
-    ++numMoves;
-
-    board[ball] |= flag[dir];
-    ball += dind[dir];
-
-    uchar ballX = indX(ball);
-    uchar ballY = indY(ball);
-
-    if(((!ballX && rightPlayerTurn) || (ballX == w-1 && !rightPlayerTurn)) && (ballY == h0 || ballY == h1))
-    {
-        if(!ballX)
-            state = RWIN;
-        else
-            state = LWIN;
-    }
-
-    if((!board[ball] && ballX && ballY && ballX != w-1 && ballY != h-1) || ball == wc0 || ball == wc1)
-        rightPlayerTurn = !rightPlayerTurn;
-
-    board[ball] |= flag[cdir(dir)];
-
-    if(board[ball] == blocked)
-    {
-        if(!rightPlayerTurn)
-            state = RWIN;
-        else
-            state = LWIN;
-    }
-}
-
-void undoMove()
-{
-    uchar dir = moveHistory[--numMoves];
-    rightPlayerTurn = playerTurnHistory[numMoves];
-
-    board[ball] &= ~flag[cdir(dir)];
-    ball += dind[cdir(dir)];
-    board[ball] &= ~flag[dir];
-
-    state = RUN;
-}
-
-const int inf = 100;
-
-int evalR()
-{
-    return -indX(ball);
-}
-
-int evalL()
-{
-    return -w+1+indX(ball);
-}
-
-int eval()
-{
-    if(state == LWIN)
-        return inf-1;
-    else if(state == RWIN)
-        return -inf+1;
-    else
-        return evalL() - evalR();
-}
-
-int negamax(int depth, uchar* bestMove, int A = -inf, int B = inf)
-{
-    if(!depth || (int)state)
-    {
-        return eval() * (rightPlayerTurn ? -1 : 1);
-    }
-
-    int best = -inf;
-
-    for(uchar i = 0; i < 8; ++i)
-    {
-        if(!(board[ball] & flag[i]))
-        {
-            makeMove(i);
-
-            bool turnChanged = (playerTurnHistory[numMoves-1] != rightPlayerTurn);
-
-            int Anew = (turnChanged ? -B : A);
-            int Bnew = (turnChanged ? -A : B);
-            int val = negamax(depth-1, nullptr, Anew, Bnew) * (turnChanged ? -1 : 1);
-
-            undoMove();
-
-            if(val >= B)
-            {
-                //if(bestMove)
-                //    cout << "\nCut-off " << label[i] << " score:" << val << " beta:" << B;
-                return val;
-            }
-
-            if(val > best)
-            {
-                best = val;
-                if(val > A)
-                    A = val;
-                if(bestMove)
-                    *bestMove = i;
-            }
+template<idx_t W = 11, idx_t H = 9, bool rstart = true>
+class Board {
+public:
+    Board() {
+        real_w = W+2;
+        real_h = H;
+        
+        memset(board, 0, sizeof(board));
+        for(idx_t x = 1; x <= W; ++x) {
+            board[idx(x, 0)  ] |= blckd(L) | blckd(DL) | blckd(D) | blckd(DR) | blckd(R);
+            board[idx(x, H-1)] |= blckd(L) | blckd(UL) | blckd(U) | blckd(UR) | blckd(R);
         }
+        
+        for(idx_t y = 0; y < H; ++y) {
+            board[idx(1, y)] |= blckd(D) | blckd(DL) | blckd(L) | blckd(UL) | blckd(U);
+            board[idx(W, y)] |= blckd(D) | blckd(DR) | blckd(R) | blckd(UR) | blckd(U);
+        }
+        
+        board[idx(1, H/2 - 1)] = blckd(D) | blckd(DL) | blckd(L);
+        board[idx(1, H/2    )] = 0;
+        board[idx(1, H/2 + 1)] = blckd(L) | blckd(UL) | blckd(U);
+
+        board[idx(W, H/2 - 1)] = blckd(D) | blckd(DR) | blckd(R);
+        board[idx(W, H/2    )] = 0;
+        board[idx(W, H/2 + 1)] = blckd(R) | blckd(UR) | blckd(U);
+
+        ball = idx(1 + W/2, H/2);
+        rturn = rstart;
+        state = PLAYING;
+        num_moves = 0;
     }
 
-    return best;
-}
+    ~Board() {}
 
-uchar computerMove()
-{
-    uchar bestMove = 8;
-    negamax(20, &bestMove, -inf, 1);
-    assert(bestMove != 8);
+    bool move_forbidden(dir_t move) {
+        return board[ball] & blckd(move);
+    }
 
-    return bestMove;
-}
+    void make_move(dir_t dir) {
+        if (move_forbidden(dir))
+            return;
+        
+        move_history[num_moves] = dir;
+        turn_history[num_moves] = rturn;
+        ++num_moves;
+        
+        board[ball] |= blckd(dir);
+        ball += didx(dir);
+        
+        idx_t ball_x = idx_x(ball);
 
-int main()
-{
-    uint numGames = 0;
-    while(true)
-    {
-        ++numGames;
-        cout << "Game " << numGames << '\n';
+        if (ball_x == 0)
+            state = RWIN;
+        else if (ball_x == W+1)
+            state = LWIN;
+        else if(board[ball] == 0)
+            rturn = !rturn;
+        
+        board[ball] |= blckd(cdir(dir));
+        
+        if(board[ball] == field_blocked)
+            state = rturn ? LWIN : RWIN;
+    }
 
-        setupBoard();
+    void undo_move() {
+        if (num_moves == 0)
+            return;
+        
+        dir_t dir = move_history[--num_moves];
+        rturn = turn_history[num_moves];
+        
+        board[ball] &= ~blckd(cdir(dir));
+        ball += didx(cdir(dir));
+        board[ball] &= ~blckd(dir);
+        
+        state = PLAYING;
+    }
 
-        while(!(int)state)
-        {
-            if(!rightPlayerTurn)
-            {
-                uchar dir = computerMove();
-                makeMove(dir);
-
-                cout << numMoves << "........... " << (playerTurnHistory[numMoves-1] ? "R" : "L") << " " << label[dir] << '\n';
+    dir_t gen_move_human() {
+        std::string command;
+        dir_t dir = dir_invalid;
+            
+        while(dir == dir_invalid) {
+            if (std::cin.eof()) {
+                exit(0);
             }
-            else
-            {
-                string command;
-                uchar dir = 8;
-
-                while(dir == 8)
-                {
-                    cout << ": ";
-                    getline(cin, command);
-                    for(uchar i = 0; i < 8; ++i)
-                    {
-                        if(label[i] == command)
-                        {
-                            dir = i;
-                            break;
-                        }
-                    }
+            if (std::cin.fail()) {
+                std::cin.clear();
+                std::cin.ignore();
+            }
+            std::cout << (rturn ? "> " : "< ");
+            getline(std::cin, command);
+            for(dir_t i = 0; i < 8; ++i) {
+                if(label(i) == command) {
+                    dir = i;
+                    break;
                 }
-
-                makeMove(dir);
-
-                cout << numMoves << "........... " << (playerTurnHistory[numMoves-1] ? "R" : "L") << " " << label[dir] << '\n';
+            }
+            if (dir == dir_invalid) {
+                std::cout << "Invalid direction\n";
+            } else if (move_forbidden(dir)) {
+                std::cout << "Forbidden move\n";
+                dir = dir_invalid;
             }
         }
+        return dir;
+    }
+
+    dir_t gen_move_rng() {
+        dir_t dir = dir_invalid;
+        do {
+            dir = rand() % 8;
+        } while(move_forbidden(dir));
+        return dir;
+    }
+    
+    GSTATE play() {
+        while(state == PLAYING) {
+            display();
+            dir_t dir = dir_invalid;
+            if (rturn) dir = gen_move_human();
+            else       dir = gen_move_rng();
+            assert(!move_forbidden(dir));
+            make_move(dir);
+        }
+        return state;
+    }
+
+    void display() {
+        char ball_sym = (rturn ? '<' : '>');
+        for (idx_t y = H-1; y >= 0; y--) {
+            for (idx_t x = 1; x <= W; x++) {
+                std::cout << (idx(x, y) == ball ? ball_sym : '.');
+                if (x != W) std::cout << (board[idx(x, y)] & blckd(R) ? "__" : "  ");
+            }
+            std::cout << "\n";
+            if (y != 0) {
+                for (idx_t x = 1; x <= W; x++) {
+                    std::cout << (board[idx(x,   y)] & blckd(D) ? "|" : " ");
+                    if (x != W) std::cout << (board[idx(x,   y)] & blckd(DR) ? "\\" : " ");
+                    if (x != W) std::cout << (board[idx(x+1, y)] & blckd(DL) ? "/" : " ");
+                }
+                std::cout << "\n";
+                for (idx_t x = 1; x <= W; x++) {
+                    std::cout << (board[idx(x,   y)] & blckd(D) ? "|" : " ");
+                    if (x != W) std::cout << (board[idx(x+1, y)] & blckd(DL) ? "/" : " ");
+                    if (x != W) std::cout << (board[idx(x,   y)] & blckd(DR) ? "\\" : " ");
+                }
+                std::cout << "\n";
+            }
+        }
+        std::cout.flush();
+    }
+
+private:
+    const static uint32_t max_moves = 305;
+
+    dir_t blckd(dir_t i) {
+        return 1 << i;
+    }
+
+    idx_t didx(dir_t i) {
+        static idx_t _didx[] = {
+            real_w-1,
+            real_w,
+            real_w+1,
+            -1,
+            1,
+            -real_w-1,
+            -real_w,
+            -real_w+1
+        };
+        return _didx[i];
+    }
+
+    std::string label(dir_t i) {
+        std::string _label[] = {
+            "q",
+            "w",
+            "e",
+            "a",
+            "d",
+            "z",
+            "x",
+            "c"
+        };
+        return _label[i];
+    }
+
+    idx_t idx_x(idx_t i) {
+        return i % real_w;
+    }
+
+    idx_t idx_y(idx_t i) {
+        return i / real_w;
+    }
+
+    dir_t cdir(dir_t dir) {
+        return 7 - dir;
+    }
+
+    idx_t idx(idx_t x, idx_t y) {
+        return x + real_w*y;
+    }
+
+    idx_t real_w;
+    idx_t real_h;
+    dir_t board[(W+2)*H];
+    idx_t ball;
+    bool rturn;    
+    GSTATE state;
+    uint32_t num_moves;
+    idx_t move_history[max_moves];
+    bool turn_history[max_moves];
+};
+
+int main() {
+    uint numGames = 0;
+    while(true) {
+        ++numGames;
+        std::cout << "Game " << numGames << '\n';
+
+        Board<> board;
+        GSTATE state = board.play();
 
         if(state == LWIN)
-            cout << "Left player won!\n\n";
+            std::cout << "Left player won!\n\n";
         else
-            cout << "Right player won!\n\n";
-
+            std::cout << "Right player won!\n\n";
         break;
     }
 
