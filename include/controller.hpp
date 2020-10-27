@@ -6,7 +6,7 @@
 #include <string>
 #include <dlfcn.h>
 
-typedef void* (*f_init_t)();
+typedef void* (*f_init_t)(int);
 typedef dir_t (*f_gen_move_t)(void*, Board&);
 typedef void (*f_destroy_t)(void*);
 
@@ -19,16 +19,21 @@ public:
         , _ctx(0)
         , _handle(0) {}
 
-    Controller(const std::string& path)
+    Controller(const std::string& path, int lvl)
         : Controller() {
-        init(path);
+        init(path, lvl);
     }
 
     ~Controller() {
         release();
     }
     
-    void init(const std::string& path) {
+    void init(const std::string& path, int lvl) {
+        if (lvl < 0 || lvl > 10) {
+            std::cout << "Level should be in the range [0-10]" << std::endl;
+            exit(1);
+        }
+        
         release();
         
         _handle = dlopen(path.c_str(), RTLD_NOW);
@@ -40,7 +45,7 @@ public:
         _gen_move = (f_gen_move_t) _dlsym("gen_move");
         _destroy = (f_destroy_t) _dlsym("destroy");
 
-        _ctx = _init();
+        _ctx = _init(lvl);
     }
 
     void release() {

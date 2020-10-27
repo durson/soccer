@@ -25,7 +25,7 @@ enum GSTATE {
 };
 
 #define W 11
-#define H 7
+#define H 9
 
 class Board {
 public:

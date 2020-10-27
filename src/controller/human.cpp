@@ -2,7 +2,7 @@
 #include <iostream>
 
 extern "C" {
-    void* init() {
+    void* init(int lvl) {
         return nullptr;
     }
 

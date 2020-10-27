@@ -13,8 +13,8 @@ int main(int argv, char** argc) {
         std::cout << "Game " << numGames << '\n';
 
         Board board;
-        Controller l_controller(argc[1]);
-        Controller r_controller(argc[2]);
+        Controller l_controller(argc[1], 7);
+        Controller r_controller(argc[2], 9);
 
         board.set_l_controller(&l_controller);
         board.set_r_controller(&r_controller);
