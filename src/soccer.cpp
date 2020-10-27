@@ -24,6 +24,7 @@ int main(int argv, char** argc) {
             std::cout << "Left player won!\n\n";
         else
             std::cout << "Right player won!\n\n";
+        break;
     }
 
     return 0;

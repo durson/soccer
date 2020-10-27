@@ -18,7 +18,7 @@ extern "C" {
                 std::cin.clear();
                 std::cin.ignore();
             }
-            std::cout << (board.Rturn() ? "> " : "< ");
+            std::cout << (board.get_rturn() ? "> " : "< ");
             getline(std::cin, cmd);
             if (cmd == "q") dir = UL;
             if (cmd == "w") dir = U;

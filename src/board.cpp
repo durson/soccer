@@ -34,8 +34,20 @@ Board::Board() {
 
 Board::~Board() {}
 
-bool Board::Rturn() {
+dir_t* Board::get_board() {
+    return board;
+}
+
+idx_t Board::get_ball() {
+    return ball;
+}
+
+bool Board::get_rturn() {
     return rturn;
+}
+
+GSTATE Board::get_state() {
+    return state;
 }
 
 bool Board::is_move_forbidden(dir_t move) {
@@ -59,25 +71,26 @@ void Board::do_move(dir_t dir) {
         state = RWIN;
     else if (ball_x == W+1)
         state = LWIN;
-    else if(board[ball] == 0)
+    else if(board[ball] == dir_t(0))
         rturn = !rturn;
     
     board[ball] |= blckd(dir_rev(dir));
 
     // no moves
-    if(board[ball] == ~dir_t(0))
+    if(board[ball] == dir_t(~0))
         state = rturn ? LWIN : RWIN;
 }
 
 void Board::undo_move() {
     if (num_moves == 0)
         return;
-    
-    dir_t dir = move_history[--num_moves];
+
+    --num_moves;
+    dir_t dir = move_history[num_moves];
     rturn = turn_history[num_moves];
     
     board[ball] &= ~blckd(dir_rev(dir));
-    ball += didx(dir_rev(dir));
+    ball -= didx(dir);
     board[ball] &= ~blckd(dir);
     
     state = PLAYING;

@@ -32,7 +32,10 @@ public:
     Board();
     ~Board();
 
-    bool Rturn();
+    dir_t* get_board();
+    idx_t get_ball();
+    bool get_rturn();
+    GSTATE get_state();
     
     bool is_move_forbidden(dir_t move);
     void do_move(dir_t dir);

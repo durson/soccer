@@ -1,5 +1,5 @@
 CXX         ?= g++
-CXXFLAGS     = $(INCLUDES_DIR) -std=c++11 -Wall -Wextra -Wpedantic -march=native -mavx2 -Ofast -pipe -flto -fomit-frame-pointer -ftree-loop-im -funroll-loops -fPIC
+CXXFLAGS     = $(INCLUDES_DIR) -std=c++11 -Wall -Wextra -Wpedantic -march=native -mavx2 -Ofast -pipe -flto -fPIC
 INCLUDES_DIR = -Iinclude -I.
 BIN_DIR      = bin
 OBJ_DIR      = obj
